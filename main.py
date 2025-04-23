@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from function import add_word, check_word #, clean_string
 
 app = Flask('V1')
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
  
 
 @app.route("/analise-lexica/verifica-token/<string:token>", methods=['GET'])

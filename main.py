@@ -1,51 +1,38 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from function import add_word, check_word #, clean_string
+from function import lexer, get_token_type
 
 app = Flask('V1')
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
- 
-
-@app.route("/analise-lexica/verifica-token/<string:token>", methods=['GET'])
-def do_lexical_analysis(token):
-  try:
-    # Lógica para obter o item com o ID fornecido
-    success = check_word(token)
-    message = 'Token encontrado com sucesso!' if success else 'Erro ao encontrar token.'
-    print(message)
-    return jsonify({'is_success': success, 'message': message}), 200
-  except BaseException as e:
-    print(str(e))
-    return jsonify({'is_success': False, 'message': e}), 500
-    
-
-@app.route("/analise-lexica/adiciona-token", methods=['POST'])
-def add_to_lexicon():
-  try:
-    token = request.get_json().get('token')
-    success = add_word(token)
-    message = 'Token adicionado com sucesso!' if success else 'Erro ao adicionar o token.'
-    print(message)
-    return jsonify({'is_success': success, 'message': message}), 200
-  except BaseException as e:
-    print(str(e))
-    return jsonify({'is_success': False, 'message': e}), 500
 
 
-@app.route("/analise-lexica/divide-token", methods=['POST'])
+@app.route("/analise-lexica", methods=['POST'])
 def divide_into_tokens():
   try:
     snippet = request.get_json().get('snippet')
-    # snippet = clean_string(snippet)  
-    response = snippet.split()
-    message = 'Tokens divididos com sucesso!' if response else 'Erro ao dividir os tokens.'
+    # snippet = clean_string(snippet)  # for removing special chars
+    response = lexer(snippet)
+    message = 'Analise lexica realizada com sucesso!' if response else 'Erro na realização da analise lexica.'
     success = bool(response)
     print(message)
     return jsonify({'is_success': success, 'message': message, 'response': response}), 200
   except BaseException as e:
     print(str(e))
-    return jsonify({'is_success': False, 'message': e}), 500
+    return jsonify({'is_success': False, 'message': str(e)}), 500
 
 
-if __name__ == "__main__":
-  app.run(debug=True)
+@app.route("/analise-lexica/analisa-token/<string:token>", methods=['GET'])
+def do_lexical_analysis(token):
+  try:
+    # Lógica para obter o item com o ID fornecido
+    result = get_token_type(token)
+    success = bool(result)
+    message = 'Token encontrado com sucesso!' if success else 'Token não encontrado.'
+    print(message)
+    return jsonify({'is_success': success, 'message': message, 'response': result}), 200
+  except BaseException as e:
+    print(str(e))
+    return jsonify({'is_success': False, 'message': str(e)}), 500
+
+if __name__ == '__main__':
+  app.run(debug=True, use_reloader=False)  # Critical fix

@@ -16,7 +16,7 @@ def split_token(text):
 
 
 def try_n_catch (text):
-    test = get_token_type(text)
+    test = get_token_type(text) # tries the entire line in case of comments
     if test != UNKNOWN:
         return {'token': text, 'type': test}
     if text[0] in ["'", '"']: # to get full strings
@@ -26,28 +26,47 @@ def try_n_catch (text):
         test = get_token_type(match)
         if test != UNKNOWN:
             return {'token': match, 'type': test}
-    # last chance
     parts = re.findall(r'\w+|\S', text)
+    # tests symbol+text combos like #define or malloc(
+    if len(parts) > 1 and (not parts[0].isalnum() or not parts[1].isalnum()):
+        part = parts[0] + parts[1]
+        test = get_token_type(part)
+        if test != UNKNOWN:
+            return {'token': part, 'type': test}
+    # last chance
     test = get_token_type(parts[0])
     return {'token': parts[0], 'type': test}
 
 def get_token_type(token):
   token_types = [
       {'regex': r'\s+', 'type': 'WHITESPACE'},
-      {'regex': r'(?://|#).*', 'type': 'COMMENT LINE'},
       {'regex': r'/\*[\s\S]*?\*/', 'type': 'COMMENT BLOCK'},
       {'regex': r'\b\d+(\.\d+)?\b', 'type': 'NUMBER'},
-      {'regex': r'\b(?:else|try|finally)\b', 'type': 'CONTROLLER'},
-      {'regex': r'\b(?:print|len|type|input|int|float|str|bool|abs|sum|min|max|round|list'
-                r'|tuple|dict|set|range|enumerate|zip|sorted|\.split|\.join|\.replace|\.find'
-                r'|\.lower|\.upper|\.strip|open|\.read|\.write|\.close|map|filter|\.append'
-                r'|\.pop|\.remove|\.sort|\.index|\.get)\b', 'type': 'FUNCTION'},
-      {'regex':r'\b(?:lambda|if|elif|for|while|except|from|import|as|raise|class|def)\b',
-       'type': 'KEYWORD'},
-      {'regex': r'\b(?:break|continue|pass|return)\b', 'type': 'STATEMENT'},
+      # SPECIFICS FOR PYTHON
+      # {'regex': r'#.*', 'type': 'COMMENT LINE'},
+      # {'regex': r'\b(?:else|try|finally)\b', 'type': 'CONTROLLER'},
+      # {'regex': r'\b(?:print|len|type|input|int|float|str|bool|abs|sum|min|max|round|list'
+      #           r'|tuple|dict|set|range|enumerate|zip|sorted|\.split|\.join|\.replace|\.find'
+      #           r'|\.lower|\.upper|\.strip|open|\.read|\.write|\.close|map|filter|\.append'
+      #           r'|\.pop|\.remove|\.sort|\.index|\.get)\b', 'type': 'FUNCTION'},
+      # {'regex':r'\b(?:auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|int|long|register|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while|_Bool|_Complex|_Imaginary)\b',
+      #  'type': 'KEYWORD'},
+      # {'regex': r'\b(?:break|continue|pass|return)\b', 'type': 'STATEMENT'},
+      #
+      # SPECIFICS FOR C
+      {'regex': r'//.*', 'type': 'COMMENT LINE'},
+      {'regex': r'\b(auto|break|case|char|const|continue|default|do|double|else|enum'
+                r'|extern|float|for|goto|if|int|long|register|return|short|signed'
+                r'|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile'
+                r'|while|_Bool|_Complex|_Imaginary)\b', 'type': 'KEYWORD'},
+      {'regex': r'^\s*#\s*(include|define|ifdef|ifndef|endif|else|elif|pragma)\b',
+       'type': 'PREPROCESSOR'},
+      {'regex': r'\b0x[0-9a-fA-F]+\b', 'type': 'HEX'},
+      {'regex': r"'.'", 'type': 'CHAR'},
+      {'regex': r'\b([a-z_][a-z0-9_]*)\s*\(', 'type': 'FUNCTION'},
       {'regex': r'[a-zA-Z_$][a-zA-Z0-9_$]*', 'type': 'IDENTIFIER'},
       {'regex': r'"([^"\\]|\\.)*"', 'type': 'STRING'},
-      {'regex': r"'([^'\\]|\\.)*'", 'type': 'STRING'},
+      # {'regex': r"'([^'\\]|\\.)*'", 'type': 'STRING'},
       {'regex': r'''[{}()\[\];,:.'"]''', 'type': 'PUNCTUATION'},
       {'regex': r'[+\-*/=<>!&|]', 'type': 'OPERATOR'}
   ]

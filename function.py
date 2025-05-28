@@ -283,3 +283,38 @@ def parser(tokens: list[Token]):
             return False, symbols
 
     return True, symbols
+
+# --- Semantic Analysis ---
+def semantic_analyzer(tokens: list[Token], declared_symbols: set[str]) -> bool:
+    """
+    Check for semantic correctness:
+    - Verify all used variables are declared.
+    - Warn about unused declared variables.
+    Returns True if no semantic errors found.
+    """
+    has_error = False
+    used_symbols = set()
+
+    is_rhs = False  # Track whether currently on right-hand side of assignment
+
+    # Identify all used variables in expressions (after '=' until ';')
+    for token in tokens:
+        if token['type'] == 'OPERATOR' and token['token'] == '=':
+            is_rhs = True
+        elif token['type'] == 'PUNCTUATION' and token['token'] == ';':
+            is_rhs = False
+        elif is_rhs and token['type'] == 'IDENTIFIER':
+            used_symbols.add(token['token'])
+
+    # Report undeclared variables usage
+    for symbol in used_symbols:
+        if symbol not in declared_symbols:
+            print(f"Semantic Error: Variable '{symbol}' not declared.")
+            has_error = True
+
+    # Warn about declared variables never used
+    unused_symbols = declared_symbols - used_symbols
+    for symbol in unused_symbols:
+        print(f"Warning: Variable '{symbol}' declared but never used.")
+
+    return not has_error

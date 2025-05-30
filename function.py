@@ -1,116 +1,112 @@
+import re
+from typing import TypedDict
+
 UNKNOWN = 'UNKNOWN'
 
-import re
+# --- Symbol Table ---
+class SymbolTable:
+    def __init__(self):
+        self.table = {}
 
-def clean_string(text):
-  new_string = ''.join(char for char in text if char.isalnum() or char == ' ')
-  return new_string
+    def insert(self, name, attributes, errors):
+        if name in self.table:
+            errors.append(f"Semantic Error: Redeclaration of variable '{name}'.")
+        else:
+            self.table[name] = attributes
 
+    def lookup(self, name):
+        return self.table.get(name, None)
 
-def split_token(text):
-  tokens = re.findall(r'\w+|\S', text)
-  response = []
-  for token in tokens:
-    response.append({'token': token, 'type': get_token_type(token)})
-  return response
+    def mark_used(self, name):
+        if name in self.table:
+            self.table[name]['used'] = True
 
+    def undeclared_variables(self, used_symbols):
+        return [s for s in used_symbols if s not in self.table]
 
-def try_n_catch (text):
-    test = get_token_type(text) # tries the entire line in case of comments
-    if test != UNKNOWN:
-        return {'token': text, 'type': test}
-    if text[0] in ["'", '"']: # to get full strings
-        quote_char = text[0]
-        match = re.match(fr'^{re.escape(quote_char)}.*?{re.escape(quote_char)}', text)
-        match = match.group(0)
-        test = get_token_type(match)
-        if test != UNKNOWN:
-            return {'token': match, 'type': test}
-    parts = re.findall(r'\w+|\S', text)
-    # tests symbol+text combos like #define or malloc(
-    if len(parts) > 1 and (not parts[0].isalnum() or not parts[1].isalnum()):
-        part = parts[0] + parts[1]
-        test = get_token_type(part)
-        if test != UNKNOWN:
-            return {'token': part, 'type': test}
-    # last chance
-    test = get_token_type(parts[0])
-    return {'token': parts[0], 'type': test}
+    def unused_variables(self):
+        return [name for name, attr in self.table.items() if not attr.get('used', False)]
+
+    def dump(self):
+        # Optional: Could convert to string or dict if needed
+        return {name: info for name, info in self.table.items()}
+
 
 def get_token_type(token):
-  token_types = [
-      {'regex': r'\s+', 'type': 'WHITESPACE'},
-      {'regex': r'/\*[\s\S]*?\*/', 'type': 'COMMENT BLOCK'},
-      {'regex': r'\b\d+(\.\d+)?\b', 'type': 'NUMBER'},
-      # SPECIFICS FOR PYTHON
-      # {'regex': r'#.*', 'type': 'COMMENT LINE'},
-      # {'regex': r'\b(?:else|try|finally)\b', 'type': 'CONTROLLER'},
-      # {'regex': r'\b(?:print|len|type|input|int|float|str|bool|abs|sum|min|max|round|list'
-      #           r'|tuple|dict|set|range|enumerate|zip|sorted|\.split|\.join|\.replace|\.find'
-      #           r'|\.lower|\.upper|\.strip|open|\.read|\.write|\.close|map|filter|\.append'
-      #           r'|\.pop|\.remove|\.sort|\.index|\.get)\b', 'type': 'FUNCTION'},
-      # {'regex':r'\b(?:auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|int|long|register|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while|_Bool|_Complex|_Imaginary)\b',
-      #  'type': 'KEYWORD'},
-      # {'regex': r'\b(?:break|continue|pass|return)\b', 'type': 'STATEMENT'},
-      #
-      # SPECIFICS FOR C
-      {'regex': r'//.*', 'type': 'COMMENT LINE'},
-      {'regex': r'\b(auto|break|case|char|const|continue|default|do|double|else|enum'
-                r'|extern|float|for|goto|if|int|long|register|return|short|signed'
-                r'|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile'
-                r'|while|_Bool|_Complex|_Imaginary)\b', 'type': 'KEYWORD'},
-      {'regex': r'^\s*#\s*(include|define|ifdef|ifndef|endif|else|elif|pragma)\b',
-       'type': 'PREPROCESSOR'},
-      {'regex': r'\b0x[0-9a-fA-F]+\b', 'type': 'HEX'},
-      {'regex': r"'.'", 'type': 'CHAR'},
-      {'regex': r'[a-zA-Z_][a-zA-Z0-9_]*', 'type': 'IDENTIFIER'},
-      {'regex': r'"([^"\\]|\\.)*"', 'type': 'STRING'},
-      # {'regex': r"'([^'\\]|\\.)*'", 'type': 'STRING'},
-      {'regex': r'''[{}()\[\];,:.'"]''', 'type': 'PUNCTUATION'},
-      {'regex': r'[+\-*/=<>!&|]', 'type': 'OPERATOR'}
-  ]
-
-  for token_type in token_types:
-      if re.fullmatch(token_type['regex'], token):
-          return token_type['type']
-  return UNKNOWN
+    token_types = [
+        {'regex': r'\s+', 'type': 'WHITESPACE'},
+        {'regex': r'/\*[\s\S]*?\*/', 'type': 'COMMENT_BLOCK'},
+        {'regex': r'//.*', 'type': 'COMMENT_LINE'},
+        {'regex': r'\d+\.\d+|\d+', 'type': 'NUMBER'},
+        {'regex': r'#(include|define|ifdef|ifndef|endif|else|elif|pragma)\b', 'type': 'PREPROCESSOR'},
+        {'regex': r'\b0x[0-9a-fA-F]+\b', 'type': 'HEX'},
+        {'regex': r"'.'", 'type': 'CHAR'},
+        {'regex': r'"([^"\\]|\\.)*"', 'type': 'STRING'},
+        {'regex': r'\b(auto|break|case|char|const|continue|default|do|double|else|enum'
+                  r'|extern|float|for|goto|if|int|long|register|return|short|signed'
+                  r'|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile'
+                  r'|while|_Bool|_Complex|_Imaginary)\b', 'type': 'KEYWORD'},
+        {'regex': r'[a-zA-Z_][a-zA-Z0-9_]*', 'type': 'IDENTIFIER'},
+        {'regex': r'[{}()\[\];,:.\'"]', 'type': 'PUNCTUATION'},  # AFTER NUMBER!
+        {'regex': r'[+\-*/=<>!&|]', 'type': 'OPERATOR'},
+    ]
+    for t in token_types:
+        if re.fullmatch(t['regex'], token):
+            return t['type']
+    return UNKNOWN
 
 
 def lexer(code):
-    code = code.split('\n')
+    token_types = [
+        ('WHITESPACE', r'\s+'),
+        ('COMMENT_BLOCK', r'/\*[\s\S]*?\*/'),
+        ('COMMENT_LINE', r'//.*'),
+        ('NUMBER', r'\d+\.\d+|\d+'),
+        ('PREPROCESSOR', r'#(include|define|ifdef|ifndef|endif|else|elif|pragma)\b'),
+        ('HEX', r'\b0x[0-9a-fA-F]+\b'),
+        ('CHAR', r"'.'"),
+        ('STRING', r'"([^"\\]|\\.)*"'),
+        ('KEYWORD', r'\b(auto|break|case|char|const|continue|default|do|double|else|enum'
+                    r'|extern|float|for|goto|if|int|long|register|return|short|signed'
+                    r'|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile'
+                    r'|while|_Bool|_Complex|_Imaginary)\b'),
+        ('IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),
+        ('PUNCTUATION', r'[{}()\[\];,:.\'"]'),
+        ('OPERATOR', r'[+\-*/=<>!&|]'),
+    ]
+
+    combined_regex = '|'.join(f'(?P<{name}>{pattern})' for name, pattern in token_types)
+    token_regex = re.compile(combined_regex)
+
     tokens = []
-    position = 0
-    line = 0
+    errors = []
+    for lineno, text in enumerate(code.splitlines()):
+        pos = 0
+        while pos < len(text):
+            match = token_regex.match(text, pos)
+            if not match:
+                errors.append({
+                    'line': lineno,
+                    'position': pos,
+                    'type': 'LEXICAL_ERROR',
+                    'message': f"Unrecognized character '{text[pos]}'"
+                })
+                pos += 1
+                continue
 
-    while line < len(code):
-        if position >= len(code[line]):
-            line += 1
-            position = 0
-            continue
+            type_ = match.lastgroup
+            value = match.group()
+            if type_ != 'WHITESPACE':
+                tokens.append({
+                    'line': lineno,
+                    'position': pos,
+                    'type': type_,
+                    'token': value
+                })
+            pos = match.end()
+    return tokens, errors
 
-        if code[line][position].isspace():
-            position += 1
-            continue
 
-        else:
-            snippet = try_n_catch(code[line][position:])
-            #snippet = snippet[0]
-            if snippet['type'] != UNKNOWN:
-                tokens.append({"line": line, "position": position,
-                   "type": snippet['type'], "token": snippet['token']})
-            else:
-                tokens.append({"line": line, "position": position,
-                "type": 'ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
-                print(f"Lexical Error: Invalid character '{snippet['token']}'"
-                f" at line {line}, position {position}.")
-            position += len(snippet['token'])
-            continue
-
-    return tokens
-
-from typing import TypedDict
-
-# TypedDict for tokens used in parsing and semantic analysis
 class Token(TypedDict):
     line: int
     position: int
@@ -118,73 +114,52 @@ class Token(TypedDict):
     token: str
 
 
-# --- Syntactic Analysis ---
 def parser(tokens: list[Token]):
-    """
-    Parses tokens to check syntax correctness.
-    Filters out comments and preprocessor directives before parsing.
-    Returns (True, symbols) if successful, else (False, symbols).
-    """
-    # Remove comments and tokens on preprocessor directive lines
+    errors = []
     preproc_lines = {t['line'] for t in tokens if t['type'] == 'PREPROCESSOR'}
-    tokens = [
-        t for t in tokens
-        if t['type'] not in {'COMMENT LINE', 'COMMENT BLOCK'} and t['line'] not in preproc_lines
-    ]
-    
-    pos = 0
-    symbols = set()  # Declared variable names
+    filtered_tokens = [t for t in tokens if t['type'] not in {'COMMENT_LINE', 'COMMENT_BLOCK'} and t['line'] not in preproc_lines]
 
-    # Match and consume a token with optional specific value
+    pos = 0
+    symbol_table = SymbolTable()
+
     def match(expected_type, expected_value=None) -> bool:
         nonlocal pos
-        if pos < len(tokens):
-            token_type, token_value = tokens[pos]['type'], tokens[pos]['token']
-            if token_type == expected_type and (expected_value is None or token_value == expected_value):
+        if pos < len(filtered_tokens):
+            if filtered_tokens[pos]['type'] == expected_type and (expected_value is None or filtered_tokens[pos]['token'] == expected_value):
                 pos += 1
                 return True
         return False
 
-    # Expression parsing (handles comparisons, additive, term, primary)
     def expression() -> bool:
         nonlocal pos
+        def primary():
+            return match('IDENTIFIER') or match('NUMBER') or (match('PUNCTUATION', '(') and expression() and match('PUNCTUATION', ')'))
 
-        def primary() -> bool:
-            nonlocal pos
-            if match('IDENTIFIER') or match('NUMBER'):
-                return True
-            elif match('PUNCTUATION', '('):
-                if not expression():
-                    return False
-                return match('PUNCTUATION', ')')
-            return False
-
-        def term() -> bool:
+        def term():
             nonlocal pos
             if not primary():
                 return False
-            while pos < len(tokens) and tokens[pos]['type'] == 'OPERATOR' and tokens[pos]['token'] in '*/':
+            while pos < len(filtered_tokens) and filtered_tokens[pos]['type'] == 'OPERATOR' and filtered_tokens[pos]['token'] in '*/':
                 pos += 1
                 if not primary():
                     return False
             return True
 
-        def additive() -> bool:
+        def additive():
             nonlocal pos
             if not term():
                 return False
-            while pos < len(tokens) and tokens[pos]['type'] == 'OPERATOR' and tokens[pos]['token'] in '+-':
+            while pos < len(filtered_tokens) and filtered_tokens[pos]['type'] == 'OPERATOR' and filtered_tokens[pos]['token'] in '+-':
                 pos += 1
                 if not term():
                     return False
             return True
 
-        def comparison() -> bool:
+        def comparison():
             nonlocal pos
             if not additive():
                 return False
-            # Support multiple comparison operators
-            while pos < len(tokens) and tokens[pos]['type'] == 'OPERATOR' and tokens[pos]['token'] in ['<', '<=', '>', '>=', '==', '!=']:
+            while pos < len(filtered_tokens) and filtered_tokens[pos]['type'] == 'OPERATOR' and filtered_tokens[pos]['token'] in ['<', '<=', '>', '>=', '==', '!=']:
                 pos += 1
                 if not additive():
                     return False
@@ -192,112 +167,135 @@ def parser(tokens: list[Token]):
 
         return comparison()
 
-    # Parse statements: variable declarations, return, assignments, function calls
-    def statement() -> bool:
+    def statement():
         nonlocal pos
         start_pos = pos
-
-        # Return statement
         if match('KEYWORD', 'return'):
-            if not expression():
-                print(f"Syntax Error: Invalid expression after return at token {tokens[pos]}")
-                return False
-            if not match('PUNCTUATION', ';'):
-                print(f"Syntax Error: Expected ';' after return statement at token {tokens[pos]}")
+            if not expression() or not match('PUNCTUATION', ';'):
+                errors.append({
+                    'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                    'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                    'type': 'SYNTAX_ERROR',
+                    'message': "Invalid return statement syntax"
+                })
                 return False
             return True
-        
-        # Variable declaration e.g. int x = 5, y;
+
         if match('KEYWORD'):
+            var_type = filtered_tokens[pos - 1]['token']
             while True:
                 if not match('IDENTIFIER'):
+                    errors.append({
+                        'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                        'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                        'type': 'SYNTAX_ERROR',
+                        'message': "Expected variable name after type"
+                    })
                     return False
-                var_name = tokens[pos - 1]['token']
-                symbols.add(var_name)
-                if match('OPERATOR', '='):
-                    if not expression():
-                        return False
+                var_name = filtered_tokens[pos - 1]['token']
+                symbol_table.insert(var_name, {'type': var_type, 'used': False}, errors)
+                if match('OPERATOR', '=') and not expression():
+                    errors.append({
+                        'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                        'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                        'type': 'SYNTAX_ERROR',
+                        'message': "Invalid assignment expression"
+                    })
+                    return False
                 if not match('PUNCTUATION', ','):
                     break
-            if match('PUNCTUATION', ';'):
-                return True
+            if not match('PUNCTUATION', ';'):
+                errors.append({
+                    'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                    'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                    'type': 'SYNTAX_ERROR',
+                    'message': "Expected ';' after declaration"
+                })
+                return False
+            return True
 
-        # Assignment or function call
         if match('IDENTIFIER'):
-            var_name = tokens[pos - 1]['token']
-
-            # Assignment: x = expr;
+            var_name = filtered_tokens[pos - 1]['token']
             if match('OPERATOR', '='):
                 if expression() and match('PUNCTUATION', ';'):
-                    symbols.add(var_name)
+                    symbol_table.insert(var_name, {'type': 'inferred', 'used': True}, errors)
                     return True
-
-            # Function call: f(...);
+                else:
+                    errors.append({
+                        'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                        'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                        'type': 'SYNTAX_ERROR',
+                        'message': "Invalid assignment statement"
+                    })
+                    return False
             elif match('PUNCTUATION', '('):
                 while not match('PUNCTUATION', ')'):
                     if not expression():
+                        errors.append({
+                            'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                            'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                            'type': 'SYNTAX_ERROR',
+                            'message': "Invalid function call arguments"
+                        })
                         return False
-                    # Optional commas between arguments
-                    if not match('PUNCTUATION', ',') and tokens[pos]['token'] != ')':
+                    if not match('PUNCTUATION', ',') and (pos >= len(filtered_tokens) or filtered_tokens[pos]['token'] != ')'):
+                        errors.append({
+                            'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                            'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                            'type': 'SYNTAX_ERROR',
+                            'message': "Expected ',' or ')' in function call"
+                        })
                         return False
-                if match('PUNCTUATION', ';'):
-                    return True
-
-        # Reset position on failure to parse statement
+                if not match('PUNCTUATION', ';'):
+                    errors.append({
+                        'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                        'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                        'type': 'SYNTAX_ERROR',
+                        'message': "Expected ';' after function call"
+                    })
+                    return False
+                return True
         pos = start_pos
         return False
 
-    # Parse control structures (while, if) with blocks
-    def control_structure() -> bool:
+    def control_structure():
         nonlocal pos
         start_pos = pos
-
         if match('KEYWORD', 'while') or match('KEYWORD', 'if'):
-            if not match('PUNCTUATION', '('):
-                print(f"Syntax Error: Expected '(' after control keyword at token {tokens[pos]}")
+            if not match('PUNCTUATION', '(') or not expression() or not match('PUNCTUATION', ')') or not match('PUNCTUATION', '{'):
+                errors.append({
+                    'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                    'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
+                    'type': 'SYNTAX_ERROR',
+                    'message': "Invalid control structure syntax"
+                })
                 return False
-            if not expression():
-                print(f"Syntax Error: Invalid expression in control condition at token {tokens[pos]}")
-                return False
-            if not match('PUNCTUATION', ')'):
-                print(f"Syntax Error: Expected ')' after condition at token {tokens[pos]}")
-                return False
-            if not match('PUNCTUATION', '{'):
-                print(f"Syntax Error: Expected '{{' to start block at token {tokens[pos]}")
-                return False
-
-            # Parse statements or nested control structures inside block
-            while pos < len(tokens) and not match('PUNCTUATION', '}'):
+            while pos < len(filtered_tokens) and not match('PUNCTUATION', '}'):
                 if not statement() and not control_structure():
                     return False
             return True
-
-        # Backtrack if not a control structure
         pos = start_pos
         return False
 
-    # Main parsing loop
-    while pos < len(tokens):
+    while pos < len(filtered_tokens):
         if not (control_structure() or statement()):
-            print(f"Syntax Error: Unexpected token: {tokens[pos]} at line {tokens[pos]['line']}, position {tokens[pos]['position']}.")
-            return False, symbols
+            errors.append({
+                'line': filtered_tokens[pos]['line'],
+                'position': filtered_tokens[pos]['position'],
+                'type': 'SYNTAX_ERROR',
+                'message': f"Unexpected token '{filtered_tokens[pos]['token']}'"
+            })
+            return False, symbol_table, errors
+    return True, symbol_table, errors
 
-    return True, symbols
 
-# --- Semantic Analysis ---
-def semantic_analyzer(tokens: list[Token], declared_symbols: set[str]) -> bool:
-    """
-    Check for semantic correctness:
-    - Verify all used variables are declared.
-    - Warn about unused declared variables.
-    Returns True if no semantic errors found.
-    """
+def semantic_analyzer(tokens: list[Token], symbol_table: SymbolTable):
+    errors = []
+    warnings = []
     has_error = False
     used_symbols = set()
+    is_rhs = False
 
-    is_rhs = False  # Track whether currently on right-hand side of assignment
-
-    # Identify all used variables in expressions (after '=' until ';')
     for token in tokens:
         if token['type'] == 'OPERATOR' and token['token'] == '=':
             is_rhs = True
@@ -305,16 +303,13 @@ def semantic_analyzer(tokens: list[Token], declared_symbols: set[str]) -> bool:
             is_rhs = False
         elif is_rhs and token['type'] == 'IDENTIFIER':
             used_symbols.add(token['token'])
+            symbol_table.mark_used(token['token'])
 
-    # Report undeclared variables usage
-    for symbol in used_symbols:
-        if symbol not in declared_symbols:
-            print(f"Semantic Error: Variable '{symbol}' not declared.")
-            has_error = True
+    for symbol in symbol_table.undeclared_variables(used_symbols):
+        errors.append(f"Semantic Error: Variable '{symbol}' not declared.")
+        has_error = True
 
-    # Warn about declared variables never used
-    unused_symbols = declared_symbols - used_symbols
-    for symbol in unused_symbols:
-        print(f"Warning: Variable '{symbol}' declared but never used.")
+    for symbol in symbol_table.unused_variables():
+        warnings.append(f"Warning: Variable '{symbol}' declared but never used.")
 
-    return not has_error
+    return not has_error, errors, warnings, symbol_table.dump()

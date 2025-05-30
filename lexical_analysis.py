@@ -34,26 +34,13 @@ def get_token_type(token):
       {'regex': r'"([^"\\]|\\.)*"', 'type': 'STRING'},
       # {'regex': r"'([^'\\]|\\.)*'", 'type': 'STRING'},
       {'regex': r'''[{}()\[\];,:.'"]''', 'type': 'PUNCTUATION'},
-      {'regex': r'[+\-*/=<>!&|]', 'type': 'OPERATOR'}
-  ]
+
+      {'regex': r'[+\-*/=<>!&|]', 'type': 'OPERATOR'}]
 
   for token_type in token_types:
       if re.fullmatch(token_type['regex'], token):
           return token_type['type']
   return UNKNOWN
-
-
-def clean_string(text):
-  new_string = ''.join(char for char in text if char.isalnum() or char == ' ')
-  return new_string
-
-
-def split_token(text):
-  tokens = re.findall(r'\w+|\S', text)
-  response = []
-  for token in tokens:
-    response.append({'token': token, 'type': get_token_type(token)})
-  return response
 
 
 def try_n_catch (text):

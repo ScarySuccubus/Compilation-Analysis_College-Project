@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from function import lexer, get_token_type
+from lexical_analysis import lexer, get_token_type
 
 app = Flask('V1')
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})

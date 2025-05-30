@@ -2,40 +2,6 @@ UNKNOWN = 'UNKNOWN'
 
 import re
 
-def clean_string(text):
-  new_string = ''.join(char for char in text if char.isalnum() or char == ' ')
-  return new_string
-
-
-def split_token(text):
-  tokens = re.findall(r'\w+|\S', text)
-  response = []
-  for token in tokens:
-    response.append({'token': token, 'type': get_token_type(token)})
-  return response
-
-
-def try_n_catch (text):
-    test = get_token_type(text) # tries the entire line in case of comments
-    if test != UNKNOWN:
-        return {'token': text, 'type': test}
-    if text[0] in ["'", '"']: # to get full strings
-        quote_char = text[0]
-        match = re.match(fr'^{re.escape(quote_char)}.*?{re.escape(quote_char)}', text)
-        match = match.group(0)
-        test = get_token_type(match)
-        if test != UNKNOWN:
-            return {'token': match, 'type': test}
-    parts = re.findall(r'\w+|\S', text)
-    # tests symbol+text combos like #define or malloc(
-    if len(parts) > 1 and (not parts[0].isalnum() or not parts[1].isalnum()):
-        part = parts[0] + parts[1]
-        test = get_token_type(part)
-        if test != UNKNOWN:
-            return {'token': part, 'type': test}
-    # last chance
-    test = get_token_type(parts[0])
-    return {'token': parts[0], 'type': test}
 
 def get_token_type(token):
   token_types = [
@@ -64,7 +30,7 @@ def get_token_type(token):
       {'regex': r'\b0x[0-9a-fA-F]+\b', 'type': 'HEX'},
       {'regex': r"'.'", 'type': 'CHAR'},
       {'regex': r'(?i)\b([a-z_][a-z0-9_]*)\s*\(', 'type': 'FUNCTION'},
-      {'regex': r'[a-zA-Z_$][a-zA-Z0-9_$]*', 'type': 'IDENTIFIER'},
+      {'regex': r'[a-zA-Z_][a-zA-Z0-9_]*', 'type': 'IDENTIFIER'},
       {'regex': r'"([^"\\]|\\.)*"', 'type': 'STRING'},
       # {'regex': r"'([^'\\]|\\.)*'", 'type': 'STRING'},
       {'regex': r'''[{}()\[\];,:.'"]''', 'type': 'PUNCTUATION'},
@@ -75,6 +41,48 @@ def get_token_type(token):
       if re.fullmatch(token_type['regex'], token):
           return token_type['type']
   return UNKNOWN
+
+
+def clean_string(text):
+  new_string = ''.join(char for char in text if char.isalnum() or char == ' ')
+  return new_string
+
+
+def split_token(text):
+  tokens = re.findall(r'\w+|\S', text)
+  response = []
+  for token in tokens:
+    response.append({'token': token, 'type': get_token_type(token)})
+  return response
+
+
+def try_n_catch (text):
+    test = get_token_type(text) # tries the entire line in case of comments
+    if test != UNKNOWN:
+        return {'token': text, 'type': test}
+
+    if text[0] in ["'", '"']: # to get full strings
+        quote_char = text[0]
+        try:
+            match = re.match(fr'^{re.escape(quote_char)}.*?{re.escape(quote_char)}', text)
+            match = match.group(0)
+            test = get_token_type(match)
+            if test != UNKNOWN:
+                return {'token': match, 'type': test}
+        except BaseException as e:
+            pass
+
+    parts = re.findall(r'\w+|\S', text) # splits everything up
+    # tests symbol+text combos like #define or malloc(
+    if len(parts) > 1 and (not parts[0].isalnum() or not parts[1].isalnum()):
+        part = parts[0] + parts[1]
+        test = get_token_type(part)
+        if test != UNKNOWN:
+            return {'token': part, 'type': test}
+
+    # last chance
+    test = get_token_type(parts[0])
+    return {'token': parts[0], 'type': test}
 
 
 def lexer(code):

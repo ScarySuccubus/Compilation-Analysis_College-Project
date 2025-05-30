@@ -10,10 +10,9 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 def divide_into_tokens():
   try:
     snippet = request.get_json().get('snippet')
-    # snippet = clean_string(snippet)  # for removing special chars
     response = lexer(snippet)
-    message = 'Analise lexica realizada com sucesso!' if response else 'Erro na realização da analise lexica.'
     success = bool(response)
+    message = 'Analise lexica realizada com sucesso!' if success else 'Erro na realização da analise lexica.'
     print(message)
     return jsonify({'is_success': success, 'message': message, 'response': response}), 200
   except BaseException as e:

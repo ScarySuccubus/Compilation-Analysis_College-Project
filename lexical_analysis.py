@@ -1,8 +1,18 @@
-UNKNOWN = 'UNKNOWN'
 
 import re
 
+class Tag:
+    # Words
+    UNKNOWN = 'UNKNOWN'
+    NUMBER = 'NUMBER'
+    PUNCTUATION = 'PUNCTUATION'
+    DECIMAL = 'DECIMAL'
+    # Punctuation
+    DOT = '.'
+    SEMICOLON = ';'
+    CURLYBRACKETS_CLOSED = '}'
 
+    
 def get_token_type(token):
   token_types = [
       {'regex': r'\s+', 'type': 'WHITESPACE'},
@@ -40,12 +50,12 @@ def get_token_type(token):
   for token_type in token_types:
       if re.fullmatch(token_type['regex'], token):
           return token_type['type']
-  return UNKNOWN
+  return Tag.UNKNOWN
 
 
 def try_n_catch (text):
     test = get_token_type(text) # tries the entire line in case of comments
-    if test != UNKNOWN:
+    if test != Tag.UNKNOWN:
         return {'token': text, 'type': test}
 
     if text[0] in ["'", '"']: # to get full strings
@@ -54,7 +64,7 @@ def try_n_catch (text):
             match = re.match(fr'^{re.escape(quote_char)}.*?{re.escape(quote_char)}', text)
             match = match.group(0)
             test = get_token_type(match)
-            if test != UNKNOWN:
+            if test != Tag.UNKNOWN:
                 return {'token': match, 'type': test}
         except BaseException as e:
             pass
@@ -64,8 +74,18 @@ def try_n_catch (text):
     if len(parts) > 1 and (not parts[0].isalnum() or not parts[1].isalnum()):
         part = parts[0] + parts[1]
         test = get_token_type(part)
-        if test != UNKNOWN:
+        if test != Tag.UNKNOWN:
             return {'token': part, 'type': test}
+
+    # tests decimals in a very roundabout way lol
+    if len(parts) > 2 and (get_token_type(parts[0]) == Tag.NUMBER and
+                           parts[1] == Tag.DOT and
+                           get_token_type(parts[2]) == Tag.NUMBER):
+        number = ''.join(parts[:3])
+        if text.find(number) != -1: # in case the numbers are not written together
+            next_char = text[text.find(number)+len(number)]
+            if next_char in (Tag.SEMICOLON, Tag.CURLYBRACKETS_CLOSED) or next_char.isspace():
+                return {'token': number, 'type': Tag.DECIMAL}
 
     # last chance
     test = get_token_type(parts[0])
@@ -91,7 +111,7 @@ def lexer(code):
         else:
             snippet = try_n_catch(code[line][position:])
             #snippet = snippet[0]
-            if snippet['type'] != UNKNOWN:
+            if snippet['type'] != Tag.UNKNOWN:
                 tokens.append({"line": line, "position": position,
                    "type": snippet['type'], "token": snippet['token']})
             else:

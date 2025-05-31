@@ -1,4 +1,4 @@
-from function import lexer, parser, semantic_analyzer
+from lexical_analysis import lexer, parser, semantic_analyzer
 
 def test_analyzer():
     test_cases = {

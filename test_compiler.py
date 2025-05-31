@@ -1,7 +1,7 @@
 import unittest
-from function import lexer, parser, semantic_analyzer
+from lexical_analysis import lexer, parser, semantic_analyzer
 
-class TestSymbolicCompiler(unittest.TestCase):
+class TestCompiler(unittest.TestCase):
     def assertLexSuccess(self, tokens, lex_errors):
         self.assertEqual(len(lex_errors), 0, f"Lexical errors found: {lex_errors}")
         for token in tokens:

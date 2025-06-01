@@ -7,11 +7,32 @@ def parser(tokens: list[Token]):
 
     pos = 0
     symbol_table = SymbolTable()
+    bracket_stack = []
+
+    def synchronize():
+        nonlocal pos
+        while pos < len(filtered_tokens) and filtered_tokens[pos]['token'] not in {';', '}'}:
+            pos += 1
+        if pos < len(filtered_tokens):
+            pos += 1
 
     def match(expected_type, expected_value=None) -> bool:
         nonlocal pos
         if pos < len(filtered_tokens):
-            if filtered_tokens[pos]['type'] == expected_type and (expected_value is None or filtered_tokens[pos]['token'] == expected_value):
+            token = filtered_tokens[pos]
+            if token['type'] == expected_type and (expected_value is None or token['token'] == expected_value):
+                if expected_value in {'(', '{', '['}:
+                    bracket_stack.append((expected_value, token['line'], token['position']))
+                elif expected_value in {')', '}', ']'}:
+                    if bracket_stack and {'(': ')', '{': '}', '[': ']'}[bracket_stack[-1][0]] == expected_value:
+                        bracket_stack.pop()
+                    else:
+                        errors.append({
+                            'line': token['line'],
+                            'position': token['position'],
+                            'type': 'SYNTAX_ERROR',
+                            'message': f"Unmatched closing bracket '{expected_value}'"
+                        })
                 pos += 1
                 return True
         return False
@@ -64,6 +85,7 @@ def parser(tokens: list[Token]):
                     'type': 'SYNTAX_ERROR',
                     'message': "Invalid return statement syntax"
                 })
+                synchronize()
                 return False
             return True
 
@@ -77,6 +99,7 @@ def parser(tokens: list[Token]):
                         'type': 'SYNTAX_ERROR',
                         'message': "Expected variable name after type"
                     })
+                    synchronize()
                     return False
                 var_name = filtered_tokens[pos - 1]['token']
                 symbol_table.insert(var_name, {'type': var_type, 'used': False}, errors)
@@ -87,6 +110,7 @@ def parser(tokens: list[Token]):
                         'type': 'SYNTAX_ERROR',
                         'message': "Invalid assignment expression"
                     })
+                    synchronize()
                     return False
                 if not match('PUNCTUATION', ','):
                     break
@@ -97,6 +121,7 @@ def parser(tokens: list[Token]):
                     'type': 'SYNTAX_ERROR',
                     'message': "Expected ';' after declaration"
                 })
+                synchronize()
                 return False
             return True
 
@@ -113,6 +138,7 @@ def parser(tokens: list[Token]):
                         'type': 'SYNTAX_ERROR',
                         'message': "Invalid assignment statement"
                     })
+                    synchronize()
                     return False
             elif match('PUNCTUATION', '('):
                 while not match('PUNCTUATION', ')'):
@@ -123,6 +149,7 @@ def parser(tokens: list[Token]):
                             'type': 'SYNTAX_ERROR',
                             'message': "Invalid function call arguments"
                         })
+                        synchronize()
                         return False
                     if not match('PUNCTUATION', ',') and (pos >= len(filtered_tokens) or filtered_tokens[pos]['token'] != ')'):
                         errors.append({
@@ -131,6 +158,7 @@ def parser(tokens: list[Token]):
                             'type': 'SYNTAX_ERROR',
                             'message': "Expected ',' or ')' in function call"
                         })
+                        synchronize()
                         return False
                 if not match('PUNCTUATION', ';'):
                     errors.append({
@@ -139,6 +167,7 @@ def parser(tokens: list[Token]):
                         'type': 'SYNTAX_ERROR',
                         'message': "Expected ';' after function call"
                     })
+                    synchronize()
                     return False
                 return True
         pos = start_pos
@@ -155,9 +184,11 @@ def parser(tokens: list[Token]):
                     'type': 'SYNTAX_ERROR',
                     'message': "Invalid control structure syntax"
                 })
+                synchronize()
                 return False
             while pos < len(filtered_tokens) and not match('PUNCTUATION', '}'):
                 if not statement() and not control_structure():
+                    synchronize()
                     return False
             return True
         pos = start_pos
@@ -166,10 +197,31 @@ def parser(tokens: list[Token]):
     while pos < len(filtered_tokens):
         if not (control_structure() or statement()):
             errors.append({
-                'line': filtered_tokens[pos]['line'],
-                'position': filtered_tokens[pos]['position'],
+                'line': filtered_tokens[pos]['line'] if pos < len(filtered_tokens) else -1,
+                'position': filtered_tokens[pos]['position'] if pos < len(filtered_tokens) else -1,
                 'type': 'SYNTAX_ERROR',
-                'message': f"Unexpected token '{filtered_tokens[pos]['token']}'"
+                'message': f"Unexpected token '{filtered_tokens[pos]['token']}'" if pos < len(filtered_tokens) else "Unexpected end of input"
             })
-            return False, symbol_table, errors
+            synchronize()
+
+    if bracket_stack:
+        for bracket, line, position in bracket_stack:
+            errors.append({
+                'line': line,
+                'position': position,
+                'type': 'SYNTAX_ERROR',
+                'message': f"Unmatched opening bracket '{bracket}'"
+            })
+
+    if pos < len(filtered_tokens):
+        errors.append({
+            'type': 'SYNTACTIC_ERROR',
+            'message': 'Extra tokens after valid input',
+            'line': filtered_tokens[pos]['line'],
+            'column': filtered_tokens[pos]['column']
+        })
+
+    if errors: 
+        return False, symbol_table, errors
+    
     return True, symbol_table, errors

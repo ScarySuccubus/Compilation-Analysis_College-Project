@@ -1,5 +1,8 @@
 import unittest
-from lexical_analysis import lexer, parser, semantic_analyzer
+from lexical_analysis import lexer
+from syntactic_analysis import parser
+from semantic_analysis import semantic_analyzer
+
 
 class TestCompiler(unittest.TestCase):
     def assertLexSuccess(self, tokens, lex_errors):
@@ -11,13 +14,17 @@ class TestCompiler(unittest.TestCase):
         valid, _, parse_errors = parser(tokens)
         self.assertTrue(valid, f"Parsing failed. Errors: {parse_errors}")
 
+    def assertParseFailure(self, tokens):
+        valid, _, parse_errors = parser(tokens)
+        self.assertFalse(valid, f"Expected parsing failure. Errors: {parse_errors}")
+
     def assertSemanticSuccess(self, tokens, symbol_table):
         success, sem_errors, warnings, _ = semantic_analyzer(tokens, symbol_table)
         self.assertTrue(success, f"Semantic analysis failed. Errors: {sem_errors}")
-
+    
     def assertSemanticFailure(self, tokens, symbol_table):
         success, sem_errors, warnings, _ = semantic_analyzer(tokens, symbol_table)
-        self.assertFalse(success, f"Expected semantic error but passed. Warnings: {warnings}")
+        self.assertFalse(success, f"Expected semantic failure but got success. Warnings: {warnings}")
 
     def run_pipeline(self, code):
         tokens, lex_errors = lexer(code)
@@ -25,6 +32,8 @@ class TestCompiler(unittest.TestCase):
         valid, symbol_table, parse_errors = parser(tokens)
         self.assertTrue(valid, f"Parsing failed. Errors: {parse_errors}")
         return tokens, symbol_table
+
+    # --- ✅ TEST CASES ---
 
     def test_valid_declaration_and_expression(self):
         code = "int a = 5;\nfloat b = a + 3.14;"
@@ -35,13 +44,12 @@ class TestCompiler(unittest.TestCase):
         code = "int a = 5\nfloat b = 2.0;"
         tokens, lex_errors = lexer(code)
         self.assertLexSuccess(tokens, lex_errors)
-        valid, _, parse_errors = parser(tokens)
-        self.assertFalse(valid, f"Expected parse failure but passed. Errors: {parse_errors}")
+        self.assertParseFailure(tokens)
 
     def test_invalid_character(self):
         code = "int a = 5$;"
         tokens, lex_errors = lexer(code)
-        self.assertTrue(len(lex_errors) > 0, "Expected invalid character error.")
+        self.assertGreater(len(lex_errors), 0, "Expected a lexical error for invalid character.")
 
     def test_undeclared_variable_use(self):
         code = "int x = y + 1;"
@@ -92,6 +100,18 @@ class TestCompiler(unittest.TestCase):
         code = "#include <stdio.h>\nint a = 5;"
         tokens, sym_table = self.run_pipeline(code)
         self.assertSemanticSuccess(tokens, sym_table)
+
+    def test_unexpected_closing_brace(self):
+        code = "int a = 5; }"
+        tokens, lex_errors = lexer(code)
+        self.assertLexSuccess(tokens, lex_errors)
+        self.assertParseFailure(tokens)
+
+    def test_missing_closing_parenthesis(self):
+        code = "int a = (2 + 3;"
+        tokens, lex_errors = lexer(code)
+        self.assertLexSuccess(tokens, lex_errors)
+        self.assertParseFailure(tokens)
 
 
 if __name__ == '__main__':

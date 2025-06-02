@@ -11,9 +11,10 @@ class Tag:
     # Punctuation
     DOT = '.'
     SEMICOLON = ';'
-    CURLYBRACKETS_CLOSED = '}'
+    CURLY_BRACKETS_CLOSED = '}'
     MULTILINE_BEGIN = '/*'
     MULTILINE_END = '*/'
+    QUOTATION_MARK = '"'
 
     
 def get_token_type(token):
@@ -61,17 +62,6 @@ def try_n_catch (text):
     if test != Tag.UNKNOWN:
         return {'token': text, 'type': test}
 
-    if text[0] in ["'", '"']: # to get full strings
-        quote_char = text[0]
-        try:
-            match = re.match(fr'^{re.escape(quote_char)}.*?{re.escape(quote_char)}', text)
-            match = match.group(0)
-            test = get_token_type(match)
-            if test != Tag.UNKNOWN:
-                return {'token': match, 'type': test}
-        except BaseException as e:
-            pass
-
     parts = re.findall(r'\w+|\S', text) # splits everything up
     # tests symbol+text combos like #define or malloc(
     if len(parts) > 1 and (not parts[0].isalnum() or not parts[1].isalnum()):
@@ -87,7 +77,7 @@ def try_n_catch (text):
         number = ''.join(parts[:3])
         if text.find(number) != -1: # in case the numbers are not written together
             next_char = text[text.find(number)+len(number)]
-            if next_char in (Tag.SEMICOLON, Tag.CURLYBRACKETS_CLOSED) or next_char.isspace():
+            if next_char in (Tag.SEMICOLON, Tag.CURLY_BRACKETS_CLOSED) or next_char.isspace():
                 return {'token': number, 'type': Tag.DECIMAL}
 
     # last chance
@@ -149,6 +139,23 @@ def lexer(code):
                                "type": 'LEXICAL ERROR: MULTI-LINE COMMENT UNCLOSED',
                                "token": start_snippet})
             continue
+
+        if code[line][position] == Tag.QUOTATION_MARK:
+            try: # just gets a full inline string if enclosed
+                match = re.match(fr'^{re.escape(Tag.QUOTATION_MARK)}.*?{re.escape(Tag.QUOTATION_MARK)}',
+                                 code[line][position:])
+                match = match.group(0)
+                test = get_token_type(match)
+                if test != Tag.UNKNOWN:
+                    tokens.append({"line": line, "position": position,
+                                   "type": test, "token": match})
+                    position += len(match)
+                    continue
+            except AttributeError:
+                tokens.append({"line": line, "position": position,
+                               "type": 'LEXICAL ERROR: UNCLOSED STRING', "token": '"'})
+                position += 1
+                continue
 
         else:
             snippet = try_n_catch(code[line][position:])

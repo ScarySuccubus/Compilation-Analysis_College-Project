@@ -1,5 +1,21 @@
 from typing import TypedDict
 
+class Tag:
+    # Words
+    UNKNOWN = 'UNKNOWN'
+    NUMBER = 'NUMBER'
+    PUNCTUATION = 'PUNCTUATION'
+    DECIMAL = 'DECIMAL'
+    MULTILINE = 'MULTILINE COMMENT'
+    # Punctuation
+    DOT = '.'
+    SEMICOLON = ';'
+    CURLY_BRACKETS_CLOSED = '}'
+    MULTILINE_BEGIN = '/*'
+    MULTILINE_END = '*/'
+    QUOTATION_MARK = '"'
+
+
 class Token(TypedDict):
     line: int
     position: int

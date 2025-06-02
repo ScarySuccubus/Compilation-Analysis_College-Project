@@ -36,7 +36,8 @@ def full_analysis():
             lex_errors = separate_errors(tokens)
             if lex_errors:
                 response += f"Lexical Errors ❌:\n{print_clean(lex_errors)}\n"
-            response += "Lexicon OK ✅\n"
+            else:
+                response += "Lexicon OK ✅\n"
         except Exception as e:
             response += f"Lexer Error: {e}\n"
             is_success = False

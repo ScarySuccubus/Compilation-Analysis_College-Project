@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from lexical_analysis import lexer, get_token_type
+from syntactic_analysis import parser
+from semantic_analysis import semantic_analyzer
 
 app = Flask('V1')
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
@@ -10,9 +12,10 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 def divide_into_tokens():
   try:
     snippet = request.get_json().get('snippet')
+    # snippet = clean_string(snippet)  # for removing special chars
     response = lexer(snippet)
+    message = 'Analise lexica realizada com sucesso!' if response else 'Erro na realização da analise lexica.'
     success = bool(response)
-    message = 'Analise lexica realizada com sucesso!' if success else 'Erro na realização da analise lexica.'
     print(message)
     return jsonify({'is_success': success, 'message': message, 'response': response}), 200
   except BaseException as e:
@@ -29,6 +32,32 @@ def do_lexical_analysis(token):
     message = 'Token encontrado com sucesso!' if success else 'Token não encontrado.'
     print(message)
     return jsonify({'is_success': success, 'message': message, 'response': result}), 200
+  except BaseException as e:
+    print(str(e))
+    return jsonify({'is_success': False, 'message': str(e)}), 500
+  
+@app.route("/analise-sintatica", methods=['POST'])
+def call_parser():
+  try:
+    code = request.get_json().get('code')
+    # snippet = clean_string(snippet)  # for removing special chars
+    success, symbol_table, errors = parser(code)
+    message = 'Analise sintatica realizada com sucesso!' if success else 'Erro na realização da analise sintatica.'
+    print(message)
+    return jsonify({'is_success': success, 'message': message, 'response': (symbol_table, errors)}), 200
+  except BaseException as e:
+    print(str(e))
+    return jsonify({'is_success': False, 'message': str(e)}), 500
+  
+@app.route("/analise-semantica", methods=['POST'])
+def call_semantic():
+  try:
+    code, symbol_table = (request.get_json().get('code'), request.get_json().get('symbol_table'))
+    # snippet = clean_string(snippet)  # for removing special chars
+    success, errors, warnings, symbol_table = semantic_analyzer(code, symbol_table)
+    message = 'Analise sintatica realizada com sucesso!' if success else 'Erro na realização da analise sintatica.'
+    print(message)
+    return jsonify({'is_success': success, 'message': message, 'response': (symbol_table, errors, warnings)}), 200
   except BaseException as e:
     print(str(e))
     return jsonify({'is_success': False, 'message': str(e)}), 500

@@ -1,4 +1,16 @@
-from lexical_analysis import lexer, parser, semantic_analyzer
+from lexical_analysis import lexer
+from syntactic_analysis import parser
+from semantic_analysis import semantic_analyzer
+
+
+def separate_errors(dict_list):
+    """Separates dictionaries into errors and non-errors based on 'type' field"""
+    errors = []
+    for item in dict_list:
+        if isinstance(item.get('type'), str) and 'error' in item['type'].lower():
+            errors.append(item)
+
+    return errors
 
 def test_analyzer():
     test_cases = {
@@ -97,12 +109,14 @@ def test_analyzer():
 
         print("Lexical Analysis:")
         try:
-            tokens, lex_errors = lexer(code)
+            tokens = lexer(code)
+            lex_errors = separate_errors(tokens)
             if lex_errors:
                 print(f"Lexical Errors ❌:\n{lex_errors}")
                 continue
-            for t in tokens:
-                print(t)
+            print("Lexicon OK ✅")
+            # for t in tokens:
+            #     print(t)
         except Exception as e:
             print(f"Lexer Error: {e}")
             continue

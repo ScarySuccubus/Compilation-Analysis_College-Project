@@ -27,7 +27,7 @@ def get_token_type(token):
        'type': 'PREPROCESSOR'},
       {'regex': r'\b0x[0-9a-fA-F]+\b', 'type': 'HEX'},
       {'regex': r"'.'", 'type': 'CHAR'},
-      {'regex': r'(?i)\b([a-z_][a-z0-9_]*)\s*\(', 'type': 'FUNCTION'},
+      #{'regex': r'(?i)\b([a-z_][a-z0-9_]*)\s*\(', 'type': 'FUNCTION'},
       {'regex': r'[a-zA-Z_][a-zA-Z0-9_]*', 'type': 'IDENTIFIER'},
       {'regex': r'"([^"\\]|\\.)*"', 'type': 'STRING'},
       # {'regex': r"'([^'\\]|\\.)*'", 'type': 'STRING'},

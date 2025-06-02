@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from lexical_analysis import lexer, get_token_type
-from manual_test import separate_errors
+from utils import separate_errors, print_clean
 from semantic_analysis import semantic_analyzer
 from syntactic_analysis import parser
 
@@ -35,19 +35,19 @@ def full_analysis():
             tokens = lexer(snippet)
             lex_errors = separate_errors(tokens)
             if lex_errors:
-                response += f"Lexical Errors ❌:\n{lex_errors}\n"
+                response += f"Lexical Errors ❌:\n{print_clean(lex_errors)}\n"
             response += "Lexicon OK ✅\n"
         except Exception as e:
             response += f"Lexer Error: {e}\n"
             is_success = False
 
-        response += "\nSyntactic Analysis:"
+        response += "\nSyntactic Analysis:\n"
         try:
             valid, symbol_table, parse_errors = parser(tokens)
             if valid:
                 response += "Syntax OK ✅\n"
             else:
-                response += f"Syntax Errors ❌:\n{parse_errors}\n"
+                response += f"Syntax Errors ❌:\n{print_clean(parse_errors)}\n"
         except Exception as e:
             response += f"Parser Error: {e}\n"
             is_success = False
@@ -58,9 +58,9 @@ def full_analysis():
             if success:
                 response += "Semantics OK ✅\n"
             else:
-                response += f"Semantic Errors ❌:\n{sem_errors}\n"
+                response += f"Semantic Errors ❌:\n{print_clean(sem_errors)}\n"
             if warnings:
-                response += f"Warnings ⚠️ :\n{warnings}\n"
+                response += f"Warnings ⚠️ :\n{('\n'.join(warnings))}\n"
         except Exception as e:
             response += f"Semantic Error: {e}\n"
             is_success = False

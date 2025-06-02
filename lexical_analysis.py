@@ -120,7 +120,7 @@ def lexer(code):
                 position = 0
                 line = start_line + 1
                 tokens.append({"line": start_line, "position": start_pos,
-                               "type": 'LEXICAL ERROR: MULTI-LINE COMMENT UNCLOSED',
+                               "type": 'LEXICAL ERROR', "message": 'Unclosed block comment',
                                "token": start_snippet})
             continue
 
@@ -138,7 +138,7 @@ def lexer(code):
                     continue
             except AttributeError:
                 tokens.append({"line": line, "position": position,
-                               "type": 'LEXICAL ERROR: UNCLOSED STRING', "token": '"'})
+                               "type": 'LEXICAL ERROR', "message": 'Unclosed string', "token": '"'})
                 position += 1
                 continue
 
@@ -149,7 +149,7 @@ def lexer(code):
                "type": snippet['type'], "token": snippet['token']})
         else:
             tokens.append({"line": line, "position": position,
-            "type": 'LEXICAL ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
+            "type": 'LEXICAL ERROR', "message": 'Unexpected character', "token": snippet['token']})
         position += len(snippet['token'])
         continue
 

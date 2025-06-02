@@ -1,16 +1,8 @@
 from lexical_analysis import lexer
 from syntactic_analysis import parser
 from semantic_analysis import semantic_analyzer
+from utils import separate_errors
 
-
-def separate_errors(dict_list):
-    """Separates dictionaries into errors and non-errors based on 'type' field"""
-    errors = []
-    for item in dict_list:
-        if isinstance(item.get('type'), str) and 'error' in item['type'].lower():
-            errors.append(item)
-
-    return errors
 
 def test_analyzer():
     test_cases = {

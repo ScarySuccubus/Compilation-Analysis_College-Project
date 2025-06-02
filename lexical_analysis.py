@@ -140,6 +140,7 @@ def lexer(code):
                                "token": start_snippet})
             continue
 
+        # strings
         if code[line][position] == Tag.QUOTATION_MARK:
             try: # just gets a full inline string if enclosed
                 match = re.match(fr'^{re.escape(Tag.QUOTATION_MARK)}.*?{re.escape(Tag.QUOTATION_MARK)}',
@@ -157,18 +158,16 @@ def lexer(code):
                 position += 1
                 continue
 
+        # Last analysis
+        snippet = try_n_catch(code[line][position:])
+        if snippet['type'] != Tag.UNKNOWN:
+            tokens.append({"line": line, "position": position,
+               "type": snippet['type'], "token": snippet['token']})
         else:
-            snippet = try_n_catch(code[line][position:])
-            #snippet = snippet[0]
-            if snippet['type'] != Tag.UNKNOWN:
-                tokens.append({"line": line, "position": position,
-                   "type": snippet['type'], "token": snippet['token']})
-            else:
-                tokens.append({"line": line, "position": position,
-                "type": 'LEXICAL ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
-                print(f"Lexical Error: Invalid character '{snippet['token']}'"
-                f" at line {line}, position {position}.")
-            position += len(snippet['token'])
-            continue
+            tokens.append({"line": line, "position": position,
+            "type": 'LEXICAL ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
+            f" at line {line}, position {position}.")
+        position += len(snippet['token'])
+        continue
 
     return tokens

@@ -116,3 +116,9 @@ class SymbolTable:
         Return a copy of the current symbol table state (for diagnostics or reporting).
         """
         return {name: info.copy() for name, info in self.table.items()}
+    
+    @classmethod
+    def from_dict(cls, data: dict):
+        obj = cls()
+        obj.table = data
+        return obj

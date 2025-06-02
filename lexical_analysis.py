@@ -166,7 +166,6 @@ def lexer(code):
         else:
             tokens.append({"line": line, "position": position,
             "type": 'LEXICAL ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
-            f" at line {line}, position {position}.")
         position += len(snippet['token'])
         continue
 

@@ -7,10 +7,13 @@ class Tag:
     NUMBER = 'NUMBER'
     PUNCTUATION = 'PUNCTUATION'
     DECIMAL = 'DECIMAL'
+    MULTILINE = 'MULTILINE COMMENT'
     # Punctuation
     DOT = '.'
     SEMICOLON = ';'
     CURLYBRACKETS_CLOSED = '}'
+    MULTILINE_BEGIN = '/*'
+    MULTILINE_END = '*/'
 
     
 def get_token_type(token):
@@ -108,6 +111,45 @@ def lexer(code):
             position += 1
             continue
 
+        # for multiline comment blocks
+        if code[line][position:position+2] == Tag.MULTILINE_BEGIN:
+            start_snippet = snippet = code[line][position:]  # captures the first comment line
+            if snippet.find(Tag.MULTILINE_END) != -1:  # single line comment block
+                snippet = snippet[:snippet.find(Tag.MULTILINE_END) + 2]
+                tokens.append({"line": line, "position": position,
+                               "type": Tag.MULTILINE, "token": snippet})
+                position += len(snippet)
+                continue
+
+            # searching the end of the comment
+            start_line = line
+            start_pos = position
+            end_found = False
+            end_pos = 0
+            line += 1
+            while line < len(code):
+                end_pos = code[line].find(Tag.MULTILINE_END)
+                if end_pos != -1:
+                    end_found = True
+                    snippet += '\n' + code[line][:end_pos + 2] # to include the */ in the snippet
+
+                    tokens.append({"line": start_line, "position": start_pos,
+                                   "type": Tag.MULTILINE, "token": snippet})
+                    break
+                snippet += '\n' + code[line]
+                line += 1
+            if end_found:
+                position = end_pos + len(Tag.MULTILINE_END)
+                if position < len(code[line]):
+                    continue
+            else:
+                position = 0
+                line = start_line + 1
+                tokens.append({"line": start_line, "position": start_pos,
+                               "type": 'LEXICAL ERROR: MULTI-LINE COMMENT UNCLOSED',
+                               "token": start_snippet})
+            continue
+
         else:
             snippet = try_n_catch(code[line][position:])
             #snippet = snippet[0]
@@ -116,7 +158,7 @@ def lexer(code):
                    "type": snippet['type'], "token": snippet['token']})
             else:
                 tokens.append({"line": line, "position": position,
-                "type": 'ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
+                "type": 'LEXICAL ERROR: UNEXPECTED CHARACTER', "token": snippet['token']})
                 print(f"Lexical Error: Invalid character '{snippet['token']}'"
                 f" at line {line}, position {position}.")
             position += len(snippet['token'])

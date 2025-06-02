@@ -10,8 +10,11 @@ def separate_errors(dict_list):
 def print_clean(dict_list):
     str_list = []
     for item in dict_list:
-        str_list.append(
-            f'{item.get('type')}: {item.get('message')} '
-            f'at line {item.get('line')}, position {item.get('position')}.'
-        )
+        if isinstance(item, dict):
+            str_list.append(
+                f'{item.get('type')}: {item.get('message')} '
+                f'at line {item.get('line')}, position {item.get('position')}.'
+            )
+        elif isinstance(item, str):
+            str_list.append(item)
     return '\n'.join(str_list)
